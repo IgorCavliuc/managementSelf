@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useState } from "react";
 import { MainLoyaut } from "../../ui/loyaut/MainLoyaut";
 import {
   FlatList,
@@ -9,117 +9,133 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppConstants } from "../../../app.constants";
-import { Button } from "../../ui/loyaut/Button";
+import { Button } from "../../ui/Button";
 import { AntDesign } from "@expo/vector-icons";
-import { TodoForm } from "./TodoForm";
-import { TodoView } from "./TodoView";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+
+interface Task {
+  label: string;
+  description: string;
+  location: string;
+  date: string;
+  complete: boolean;
+  time: string;
+  image: string[];
+  url: string;
+  tag: string;
+}
 
 export const Todo: FC = () => {
-  const [visibleModal, setVisibleModal] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [editTask, setEditTask] = useState();
-  const [taskViewId, setTaskViewId] = useState(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const navigation = useNavigation();
 
-  useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const jsonTasks = await AsyncStorage.getItem("@tasks");
-        if (jsonTasks !== null) {
-          setTasks(JSON.parse(jsonTasks));
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadTasks = async () => {
+        try {
+          const jsonTasks = await AsyncStorage.getItem("@tasks");
+          const tasksStorage: Task[] = jsonTasks ? JSON.parse(jsonTasks) : [];
+          setTasks(tasksStorage);
+        } catch (error) {
+          console.error("Ошибка загрузки задач:", error);
         }
-      } catch (error) {
-        console.error("Ошибка загрузки задач:", error);
-      }
-    };
+      };
 
-    loadTasks();
+      loadTasks();
 
-    return () => {
-      // Если нужно выполнить какие-то действия при размонтировании, их можно выполнить здесь
-    };
-  }, []);
+      setTimeout(loadTasks, 100);
 
-  useEffect(() => {
-    const saveTasks = async () => {
-      try {
-        await AsyncStorage.setItem("@tasks", JSON.stringify(tasks));
-      } catch (error) {
-        console.error("Ошибка сохранения задач:", error);
-      }
-    };
+      return () => {};
+    }, []),
+  );
 
-    saveTasks();
-  }, [tasks]);
-
-  const handleAddTask = (task) => {
-    if (task) {
-      setTasks((prevState) => [...prevState, task]);
-      setVisibleModal(false);
+  const handleDeleteTask = async (index: number) => {
+    try {
+      const updatedTasks = [...tasks];
+      updatedTasks.splice(index, 1);
+      setTasks(updatedTasks);
+      await AsyncStorage.setItem("@tasks", JSON.stringify(updatedTasks));
+    } catch (error) {
+      console.error("Ошибка удаления задачи:", error);
     }
   };
 
-  const handleEditTask = (editedTask) => {
-    const updatedTasks = tasks.map((task) => {
-      if (task._id === editedTask._id) {
-        return editedTask;
+  const renderItem = ({ item, index }: { item: Task; index: number }) => {
+    const handleToggleTaskState = async (index: number) => {
+      try {
+        const updatedTasks = [...tasks];
+        updatedTasks[index].complete = !updatedTasks[index].complete;
+        setTasks(updatedTasks);
+        await AsyncStorage.setItem("@tasks", JSON.stringify(updatedTasks));
+      } catch (error) {
+        console.error("Ошибка изменения состояния задачи:", error);
       }
-      return task;
-    });
+    };
 
-    setTasks(updatedTasks);
-    setVisibleModal(false);
-  };
-
-  const handleDeleteTask = (index) => {
-    const updatedTasks = [...tasks];
-    updatedTasks.splice(index, 1);
-    setTasks(updatedTasks);
-  };
-
-  const renderItem = ({ item, index }) => (
-    <View style={styles.task}>
-      <TouchableOpacity
-        onPress={() => {
-          setTaskViewId(item._id);
-        }}
-        style={{
-          flexDirection: "column",
-          flex: 1,
-          maxHeight: 55,
-          overflow: "hidden",
-          // borderColor: AppConstants.grayColor,
-          // borderStyle: "solid",
-          // borderBottomWidth: 1,
-          // paddingBottom: 10,
-        }}
-      >
-        <Text style={styles.itemListLabel}>
-          {item.label}{" "}
-          {item?.url || item?.image || item?.link ? (
-            <AntDesign
-              name="paperclip"
-              size={16}
-              color={AppConstants.grayColor}
-            />
-          ) : null}
-        </Text>
-        <Text style={styles.itemListDescription}>{item.description}</Text>
-      </TouchableOpacity>
-      <View style={styles.taskButtons}>
+    return (
+      <View style={styles.task}>
         <TouchableOpacity
-          onPress={() => {
-            setVisibleModal(true);
-            setEditTask(item._id);
+          onPress={() => handleToggleTaskState(index)} // Вызывается функция handleToggleTaskState с индексом текущей задачи
+          style={{
+            height: 20,
+            width: 20,
+            borderRadius: 5,
+            borderStyle: "solid",
+            borderWidth: 1,
+            borderColor: AppConstants.grayColor,
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
-          <AntDesign name="edit" size={16} color="white" />
+          {item?.complete && (
+            <AntDesign name="check" size={16} color={AppConstants.grayColor} />
+          )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDeleteTask(index)}>
-          <AntDesign name="delete" size={16} color={AppConstants.errorColor} />
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate("TodoView", { id: item._id });
+          }}
+          style={{
+            flexDirection: "column",
+            flex: 1,
+            maxHeight: 55,
+            overflow: "hidden",
+          }}
+        >
+          <Text style={styles.itemListLabel}>
+            {item.label}{" "}
+            {item.url || item.image || item?.link ? (
+              <AntDesign
+                name="paperclip"
+                size={16}
+                color={AppConstants.grayColor}
+              />
+            ) : null}
+          </Text>
+          <Text style={styles.itemListDescription}>{item.description}</Text>
         </TouchableOpacity>
+        <View style={styles.taskButtons}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate("TodoForm", { id: item._id });
+            }}
+          >
+            <AntDesign
+              name="edit"
+              size={16}
+              style={{
+                opacity: 0.6,
+              }}
+              color={AppConstants.grayColor}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDeleteTask(index)}>
+            <AntDesign name="delete" size={16} color={AppConstants.grayColor} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <MainLoyaut title="Todo">
@@ -129,8 +145,7 @@ export const Todo: FC = () => {
           justifyContent: "space-between",
           height: 40,
           width: "full",
-          gap: AppConstants.primaryGap,
-          marginTop: AppConstants.primaryGap,
+          gap: AppConstants.gapSizeMd,
         }}
       >
         <TextInput
@@ -160,34 +175,24 @@ export const Todo: FC = () => {
           }}
         >
           {" "}
-          <AntDesign name="ellipsis1" size={26} color="white" />
+          <AntDesign
+            name="ellipsis1"
+            size={26}
+            color={AppConstants.darkColor}
+          />
         </Button>
       </View>
-
       <FlatList
         data={tasks}
         renderItem={renderItem}
         keyExtractor={(item, index) => index.toString()}
       />
-
       <View style={styles.container}>
-        <TodoView
-          setTaskViewId={setTaskViewId}
-          setVisibleModal={setVisibleModal}
-          taskView={tasks.find((el) => el._id === taskViewId)}
-          setEditTask={setEditTask}
-        />
-        <TodoForm
-          visibleModal={visibleModal}
-          setVisibleModal={setVisibleModal}
-          handleAddTask={handleAddTask}
-          handleEditTask={handleEditTask}
-          editTask={tasks.find((el) => el._id === editTask)}
-          setEditTask={setEditTask}
-        />
-
-        <Button style={styles.addButton} onPress={() => setVisibleModal(true)}>
-          <AntDesign name="plus" size={26} color="white" />
+        <Button
+          style={styles.addButton}
+          onPress={() => navigation.navigate("TodoForm")}
+        >
+          <AntDesign name="plus" size={26} color={AppConstants.darkColor} />
         </Button>
       </View>
     </MainLoyaut>
@@ -197,12 +202,12 @@ export const Todo: FC = () => {
 const styles = {
   label: {
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "bold",
     textTransform: "uppercase",
     marginBottom: 10,
   },
-  input: (edite) => ({
+  input: (edite: boolean) => ({
     borderColor: AppConstants.grayColor,
     borderStyle: "solid",
     borderWidth: 1,
@@ -210,7 +215,7 @@ const styles = {
     height: 40,
     borderRadius: 10,
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "bold",
     opacity: edite ? 1 : 0.3,
   }),
@@ -221,7 +226,7 @@ const styles = {
     padding: 10,
     borderRadius: 10,
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "bold",
     backgroundColor: "transparent",
     height: 30,
@@ -235,12 +240,12 @@ const styles = {
     flexDirection: "row",
   },
   title: {
-    fontSize: 24,
+    fontSize: AppConstants.fontSizeMd,
     fontWeight: "bold",
     marginBottom: 20,
   },
   heading: {
-    fontSize: 30,
+    fontSize: AppConstants.fontSizeLg,
     fontWeight: "bold",
     marginBottom: 7,
     color: "green",
@@ -258,26 +263,23 @@ const styles = {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    // marginBottom: 15,
-    // paddingBottom: 10,
     height: 40,
-    color: AppConstants.grayColor,
-    fontSize: 18,
-    marginTop: AppConstants.primaryGap,
-    gap: AppConstants.primaryGap,
+    fontSize: AppConstants.fontSizeSm,
+    marginTop: AppConstants.gapSizeMd,
+    gap: AppConstants.gapSizeSm,
   },
   itemListLabel: {
     color: AppConstants.grayColor,
     fontWeight: "bold",
-    fontSize: 19,
+    fontSize: AppConstants.fontSizeSm,
     marginBottom: 5,
   },
   itemListDescription: {
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
   },
   taskButtons: {
     flexDirection: "row",
-    gap: AppConstants.primaryGap,
+    gap: AppConstants.gapSizeMd,
   },
 };

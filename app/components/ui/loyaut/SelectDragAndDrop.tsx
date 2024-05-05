@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   },
   dropdownButtonTxtStyle: {
     flex: 1,
-    fontSize: 18,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "500",
     color: AppConstants.grayColor,
   },
@@ -83,12 +83,12 @@ const styles = StyleSheet.create({
   },
   dropdownItemTxtStyle: {
     flex: 1,
-    fontSize: 18,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "500",
     color: AppConstants.grayColor,
   },
   dropdownItemIconStyle: {
-    fontSize: 28,
+    fontSize: AppConstants.fontSizeMd,
     marginRight: 8,
   },
 });

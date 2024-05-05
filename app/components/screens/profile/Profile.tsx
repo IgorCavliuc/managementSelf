@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { MainLoyaut } from "../../ui/loyaut/MainLoyaut";
 import { useAuth } from "../../../hooks/useAuth";
-import { Button } from "../../ui/loyaut/Button";
+import { Button } from "../../ui/Button";
 import { IUser } from "../../../types/user.interface";
 import { AppConstants } from "../../../app.constants";
 
@@ -22,25 +22,27 @@ export const Profile = () => {
     setUser(editeUserData);
     setEdite(false);
   };
+  const changeData = (
+    <Button
+      style={styles.button(edite)}
+      textStyle={{
+        color: !edite ? AppConstants.primaryColor : AppConstants.grayColor,
+        alignSelf: "flex-end",
+      }}
+      onPress={edite ? handleSave : () => setEdite(true)}
+    >
+      {edite ? "Save" : "Edit"}
+    </Button>
+  );
 
   return (
-    <MainLoyaut title="Profile">
-      <Button
-        style={styles.button}
-        textStyle={{
-          color: !edite ? AppConstants.primaryColor : "white",
-          alignSelf: "flex-end",
-        }}
-        onPress={edite ? handleSave : () => setEdite(true)}
-      >
-        {edite ? "Save my new data" : "Edit my data"}
-      </Button>
+    <MainLoyaut title="Profile" headerChildren={changeData}>
       {arrayprofileData.map((el, index) => (
         <View
           key={index}
           style={{
             flexDirection: "column",
-            marginBottom: AppConstants.primaryGap,
+            marginBottom: AppConstants.gapSizeMd,
           }}
         >
           <Text style={styles.label}>{el.label}</Text>
@@ -59,10 +61,13 @@ export const Profile = () => {
         </View>
       ))}
       <Button
-        style={{ marginTop: "auto", marginBottom: AppConstants.primaryGap }}
+        style={{
+          marginTop: "auto",
+          marginBottom: AppConstants.gapSizeMd,
+        }}
         onPress={() => setUser({} as IUser)}
       >
-        LogOut
+        Logout
       </Button>
     </MainLoyaut>
   );
@@ -71,7 +76,7 @@ export const Profile = () => {
 const styles = {
   label: {
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "bold",
     textTransform: "uppercase",
     marginBottom: 10,
@@ -84,11 +89,16 @@ const styles = {
     height: 40,
     borderRadius: 10,
     color: AppConstants.grayColor,
-    fontSize: 14,
+    fontSize: AppConstants.fontSizeSm,
     fontWeight: "bold",
     opacity: edite ? 1 : 0.3,
   }),
-  button: {
+  button: (edite) => ({
+    borderColor: !edite ? AppConstants.primaryColor : AppConstants.grayColor,
     backgroundColor: "transparent",
-  },
+    borderWidth: 1,
+    // width: 50,
+    paddingLeft: 10,
+    paddingRight: 10,
+  }),
 };

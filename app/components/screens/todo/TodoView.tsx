@@ -1,99 +1,122 @@
 import { Modal, ScrollView, Text, View } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { MainLoyaut } from "../../ui/loyaut/MainLoyaut";
-import { Button } from "../../ui/loyaut/Button";
+import { Button } from "../../ui/Button";
 import { AppConstants } from "../../../app.constants";
 import { AntDesign } from "@expo/vector-icons";
-import Slider from "../../ui/loyaut/Slider";
+import Slider from "../../ui/Slider";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import App from "../../../../App";
 
-export const TodoView = ({
-  taskView,
-  setTaskViewId,
-  setEditTask,
-  setVisibleModal,
-}: any) => {
-  const images = taskView?.image;
+export const TodoView = () => {
+  const navigation = useNavigation();
+  const [task, setTask] = useState({});
+
+  const route = useRoute();
+  const { id } = route.params;
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const jsonTasks = await AsyncStorage.getItem("@tasks");
+        if (jsonTasks !== null) {
+          setTask(JSON.parse(jsonTasks).find((el) => el._id === id));
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки задач:", error);
+      }
+    };
+
+    loadTasks();
+
+    return () => {
+      // Если нужно выполнить какие-то действия при размонтировании, их можно выполнить здесь
+    };
+  }, []);
+
+  const images = task?.image;
   return (
-    <Modal visible={Boolean(taskView)}>
-      <MainLoyaut>
-        <View
+    <MainLoyaut
+      title="Task View"
+      headerChildren={
+        <Button
+          onPress={() => navigation.navigate("TodoForm", { id: id })}
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            gap: AppConstants.primaryGap,
+            backgroundColor: "transparent",
+            alignItems: "center",
+            borderRadius: 50,
+            height: 50,
+            width: 50,
           }}
         >
-          <Button
-            onPress={() => setTaskViewId(null)}
+          <AntDesign name="edit" size={26} color={AppConstants.grayColor} />
+        </Button>
+      }
+    >
+      <ScrollView>
+        <View>
+          {task?.dateCreate || task?.timeCreate ? (
+            <Text style={styles.createTask}>
+              create or update: {task?.dateCreate} in {task?.timeCreate}
+            </Text>
+          ) : null}
+          <Text style={styles.labelHead}>{task?.label}</Text>
+          <Text
+            style={[styles.labelDesc, { marginBottom: AppConstants.gapSizeSm }]}
+          >
+            {task?.description}
+          </Text>
+          <View
             style={{
-              backgroundColor: "transparent",
-              alignItems: "center",
-              borderRadius: 50,
-              height: 50,
-              width: 50,
+              flexDirection: "row",
+              gap: AppConstants.gapSizeSm,
+              marginBottom: 0,
             }}
           >
-            <AntDesign
-              name="leftcircleo"
-              size={26}
-              color={AppConstants.grayColor}
-            />
-          </Button>
-          <Button
-            onPress={() => {
-              setEditTask(taskView._id);
-              setVisibleModal(true);
-            }}
-            style={{
-              backgroundColor: "transparent",
-              alignItems: "center",
-              borderRadius: 50,
-              height: 50,
-              width: 50,
-            }}
-          >
-            <AntDesign name="edit" size={26} color={AppConstants.grayColor} />
-          </Button>
-        </View>
-        <ScrollView>
-          <View style={{ height: "100%" }}>
-            <Text style={styles.labelHead}>{taskView?.label}</Text>
-            <Text style={[styles.labelDesc, { marginBottom: 20 }]}>
-              {taskView?.description}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 20, marginBottom: 0 }}>
+            {task?.date && (
               <Text style={styles.labelDesc}>
-                <Text style={{ fontWeight: "bold" }}>Date:</Text>{" "}
-                {taskView?.date}
+                <Text style={{ fontWeight: "bold", opacity: 0.6 }}>Date:</Text>{" "}
+                {task?.date}
               </Text>
+            )}
+            {task?.time && (
               <Text style={styles.labelDesc}>
-                <Text style={{ fontWeight: "bold" }}>Time:</Text>{" "}
-                {taskView?.time}
+                <Text style={{ fontWeight: "bold", opacity: 0.6 }}>Time:</Text>{" "}
+                {task?.time}
               </Text>
-            </View>
-            <Text style={[styles.labelDesc, { marginBottom: 40 }]}>
-              <Text style={{ fontWeight: "bold" }}>Location: </Text>
-              {taskView?.location}
-            </Text>
-            <Slider photos={images} />
+            )}
           </View>
-        </ScrollView>
-      </MainLoyaut>
-    </Modal>
+          {task?.location && (
+            <Text style={[styles.labelDesc, { marginBottom: 10 }]}>
+              <Text style={{ fontWeight: "bold", opacity: 0.6 }}>
+                Location:{" "}
+              </Text>
+              {task?.location}
+            </Text>
+          )}
+          <Slider photos={images} />
+        </View>
+      </ScrollView>
+    </MainLoyaut>
   );
 };
 
 const styles = {
   labelHead: {
     color: AppConstants.grayColor,
-    fontSize: 36,
+    fontSize: AppConstants.fontSizeMd,
     fontWeight: "bold",
-    marginBottom: 40,
-    marginTop: 20,
+    marginBottom: AppConstants.gapSizeSm,
   },
   labelDesc: {
     color: AppConstants.grayColor,
-    fontSize: 20,
-    fontWeight: "400",
+    fontSize: AppConstants.fontSizeSm,
+  },
+  createTask: {
+    color: AppConstants.grayColor,
+    fontSize: AppConstants.fontSizeSm,
+    marginBottom: AppConstants.gapSizeLg,
+    opacity: 0.7,
   },
 };

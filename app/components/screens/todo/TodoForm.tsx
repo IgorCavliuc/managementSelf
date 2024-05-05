@@ -1,25 +1,25 @@
-import { Modal, ScrollView, Text, TextInput, View } from "react-native";
-import { Button } from "../../ui/loyaut/Button";
+import { ScrollView, Text, TextInput, View } from "react-native";
+import { Button } from "../../ui/Button";
 import { AntDesign } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { AppConstants } from "../../../app.constants";
 import uuid from "react-native-uuid";
-import { SelectDragAndDrop } from "../../ui/loyaut/SelectDragAndDrop";
-import { UploadImage } from "../../ui/loyaut/UploadImage";
+import { SelectDragAndDrop } from "../../ui/SelectDragAndDrop";
+import { UploadImage } from "../../ui/UploadImage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MainLoyaut } from "../../ui/loyaut/MainLoyaut";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import DateTimePicker from "../../ui/DateTimePicker";
 
-export const TodoForm = ({
-  visibleModal,
-  setVisibleModal,
-  handleAddTask,
-  handleEditTask,
-  editTask,
-  setEditTask,
-}) => {
+export const TodoForm = ({}) => {
   const [stateForm, setStateForm] = useState({
     label: "",
     description: "",
     location: "",
     date: "",
+    dateCreate: "",
+    timeCreate: "",
+    complete: false,
     time: "",
     image: [],
     url: "",
@@ -37,26 +37,98 @@ export const TodoForm = ({
     tag: "",
   });
 
+  const route = useRoute();
+  const taskId = route?.params?.id;
+
+  const navigation = useNavigation();
+
   useEffect(() => {
-    if (editTask && visibleModal) setStateForm(editTask);
-  }, [editTask, visibleModal]);
-  const handleAddTaskValid = (task) => {
+    if (taskId) {
+      const loadTasks = async () => {
+        try {
+          const jsonTasks = await AsyncStorage.getItem("@tasks");
+          if (jsonTasks !== null) {
+            setStateForm(JSON.parse(jsonTasks).find((el) => el._id === taskId));
+          }
+        } catch (error) {
+          console.error("Ошибка загрузки задач:", error);
+        }
+      };
+
+      loadTasks();
+
+      return () => {
+        // Если нужно выполнить какие-то действия при размонтировании, их можно выполнить здесь
+      };
+    }
+  }, []);
+
+  const handleAddTaskValid = async (addStateForm) => {
     let newErrorForm = { ...errorForm };
 
-    if (!task?.label?.trim()) {
+    if (!addStateForm.label.trim()) {
       newErrorForm.label = true;
     }
 
-    if (!task?.description?.trim()) {
+    if (!addStateForm.description.trim()) {
       newErrorForm.description = true;
     }
 
     if (Object.values(newErrorForm).some((error) => error)) {
       setErrorForm(newErrorForm);
     } else {
-      handleAddTask({ ...task, _id: uuid.v4() });
-      setStateForm({});
-      setErrorForm({});
+      const saveTasks = async () => {
+        try {
+          const nowDate = new Date().toLocaleDateString();
+          const nowTime = new Date().toLocaleTimeString();
+
+          const arrayTask = await AsyncStorage.getItem("@tasks");
+
+          let currentArray = JSON.parse(arrayTask) || []; // Если текущий массив пустой, создаем новый массив
+
+          currentArray.unshift({
+            ...addStateForm,
+            _id: uuid.v4(),
+            timeCreate: nowTime,
+            dateCreate: nowDate,
+          });
+
+          await AsyncStorage.setItem("@tasks", JSON.stringify(currentArray));
+        } catch (error) {
+          console.error("Ошибка сохранения задач:", error);
+        }
+      };
+
+      saveTasks();
+
+      navigation.navigate("Todo");
+    }
+  };
+
+  const handleEditTask = async (editedTask) => {
+    try {
+      const nowDate = new Date().toLocaleDateString();
+      const nowTime = new Date().toLocaleTimeString();
+      const jsonTasks = await AsyncStorage.getItem("@tasks");
+      const tasks = jsonTasks ? JSON.parse(jsonTasks) : [];
+
+      const updatedTasks = tasks.map((task) => {
+        if (task._id === editedTask._id) {
+          // Обновляем поля времени и даты создания
+          return {
+            ...editedTask,
+            timeCreate: nowTime,
+            dateCreate: nowDate,
+          };
+        }
+        return task;
+      });
+
+      await AsyncStorage.setItem("@tasks", JSON.stringify(updatedTasks));
+
+      navigation.navigate("Todo");
+    } catch (error) {
+      console.error("Error updating task:", error);
     }
   };
 
@@ -76,48 +148,12 @@ export const TodoForm = ({
   };
 
   return (
-    <Modal visible={visibleModal}>
+    <MainLoyaut title={"new task"}>
       <ScrollView
         style={styles.taskAddTool}
         contentContainerStyle={styles.scrollViewContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.addButtonWrapper}>
-          <Button
-            style={{ flex: 1, backgroundColor: AppConstants.grayColor }}
-            onPress={() => {
-              setVisibleModal(false);
-              setStateForm({});
-              setErrorForm({});
-              setEditTask({});
-            }}
-            style={{
-              backgroundColor: "transparent",
-              alignItems: "center",
-              borderRadius: 50,
-              width: 50,
-            }}
-          >
-            <AntDesign
-              name="leftcircleo"
-              size={26}
-              color={AppConstants.grayColor}
-            />
-          </Button>
-          <Text
-            style={{
-              fontSize: 30,
-              fontWeight: 600,
-              color: AppConstants.grayColor,
-              textTransform: "uppercase",
-              position: "absolute",
-              left: "25%",
-            }}
-          >
-            Add new task
-          </Text>
-        </View>
-
         <View style={styles.itemContainer}>
           <Text style={styles.labelHeader}>Label</Text>
           <TextInput
@@ -156,7 +192,7 @@ export const TodoForm = ({
             {
               flexDirection: "row",
               flex: 1,
-              gap: AppConstants.primaryGap,
+              gap: AppConstants.gapSizeMd,
             },
           ]}
         >
@@ -169,10 +205,10 @@ export const TodoForm = ({
                 color={AppConstants.grayColor}
               />
             </Text>
-            <TextInput
-              style={styles.inputNew(errorForm.date)}
+            <DateTimePicker
+              onChange={(value) => onChange("date", value)}
+              mode="calendar"
               value={stateForm.date}
-              onChangeText={(value) => onChange("date", value)}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -184,10 +220,10 @@ export const TodoForm = ({
                 color={AppConstants.grayColor}
               />
             </Text>
-            <TextInput
-              style={styles.inputNew(errorForm.time)}
+            <DateTimePicker
+              mode="time"
               value={stateForm.time}
-              onChangeText={(value) => onChange("time", value)}
+              onChange={(value) => onChange("time", value)}
             />
           </View>
         </View>
@@ -231,8 +267,7 @@ export const TodoForm = ({
         <View style={{ marginBottom: 120 }}>
           <Button
             onPress={() => {
-              setEditTask({});
-              editTask
+              taskId
                 ? handleEditTask(stateForm)
                 : handleAddTaskValid(stateForm);
             }}
@@ -244,11 +279,11 @@ export const TodoForm = ({
               flex: 1,
             }}
           >
-            {editTask ? "Update" : "Add new task"}
+            {taskId ? "Update" : "Add new task"}
           </Button>
         </View>
       </ScrollView>
-    </Modal>
+    </MainLoyaut>
   );
 };
 
@@ -256,7 +291,7 @@ const styles = {
   labelHeader: {
     color: AppConstants.grayColor,
     fontWeight: "bold",
-    fontSize: 19,
+    fontSize: AppConstants.fontSizeSm,
     marginBottom: 5,
   },
   inputNew: (error) => ({
@@ -266,7 +301,7 @@ const styles = {
     width: "100%",
     borderRadius: 10,
     color: AppConstants.grayColor,
-    fontSize: 19,
+    fontSize: AppConstants.fontSizeSm,
     marginBottom: 5,
     padding: 10,
   }),
@@ -279,31 +314,21 @@ const styles = {
     marginTop: "auto",
     flexDirection: "row",
     gap: 20,
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   taskAddTool: {
     backgroundColor: AppConstants.darkColor,
-    paddingTop: 50,
-    padding: 20,
-    paddingBottom: 120,
   },
   itemContainer: {
     position: "relative",
-    marginBottom: AppConstants.primaryGap,
+    marginBottom: AppConstants.gapSizeMd,
   },
 
   inputContainer: {
     position: "relative",
     marginBottom: 20,
   },
-  input: {
-    height: 60,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "gray",
-    paddingLeft: 10,
-  },
   scrollViewContainer: {
-    paddingTop: 10,
+    // paddingTop: 10,
   },
 };
